@@ -1,15 +1,15 @@
 #cloud-config
 # ==============================================================================
-# CLOUD-INIT USER-DATA SNIPPET: Automatiseret Nginx Serverrolle
+# CLOUD-INIT USER-DATA SNIPPET: Webserver Rolle (Nginx)
 # ==============================================================================
-# Denne snippet anvendes af Proxmox via parameteren:
-#   qm set <VMID> --cicustom "user=local:snippets/customer-webserver.yaml"
+# Anvendes af Proxmox via:
+#   qm set <VMID> --cicustom "user=local:snippets/vm-<VMID>-userdata.yaml"
 #
 # Formål:
-#   1. Opdaterer pakkekataloget ved første boot
+#   1. Opdaterer apt pakkekatalog ved første boot
 #   2. Installerer Nginx webserver og QEMU guest agent
-#   3. Opretter en professionel, stilren index.html
-#   4. Erstatter automatisk placeholders med maskinens rigtige data
+#   3. Genererer en responsiv, moderne HTML-statusside for kunden
+#   4. Erstatter automatisk pladsholdere med maskinens faktiske hostname og IP
 # ==============================================================================
 
 package_update: true
@@ -126,6 +126,10 @@ write_files:
                       <div class="item-label">IP-Adresse</div>
                       <div class="item-value">__IP_ADDRESS__</div>
                   </div>
+                  <div>
+                      <div class="item-label">Serverrolle</div>
+                      <div class="item-value">Nginx Webserver</div>
+                  </div>
               </div>
 
               <div class="footer">
@@ -136,10 +140,12 @@ write_files:
       </html>
 
 runcmd:
-  # Hent serverens faktiske runtime data direkte fra OS
-  - HOSTNAME_VAL=$(hostname)
-  - IP_VAL=$(hostname -I | awk '{print $1}')
-  - sed -i "s/__HOSTNAME__/${HOSTNAME_VAL}/g" /var/www/html/index.html
-  - sed -i "s/__IP_ADDRESS__/${IP_VAL}/g" /var/www/html/index.html
-  - systemctl restart nginx
-  - systemctl enable --now qemu-guest-agent
+  - |
+    #!/bin/bash
+    set -e
+    HOSTNAME_VAL=$(hostname)
+    IP_VAL=$(hostname -I | awk '{print $1}')
+    sed -i "s|__HOSTNAME__|${HOSTNAME_VAL}|g" /var/www/html/index.html
+    sed -i "s|__IP_ADDRESS__|${IP_VAL}|g" /var/www/html/index.html
+    systemctl restart nginx
+    systemctl enable --now qemu-guest-agent

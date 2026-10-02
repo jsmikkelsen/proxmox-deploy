@@ -1,0 +1,45 @@
+#cloud-config
+# ==============================================================================
+# CLOUD-INIT USER-DATA SNIPPET: Standard Linux Server Rolle
+# ==============================================================================
+# Anvendes af Proxmox via:
+#   qm set <VMID> --cicustom "user=local:snippets/vm-<VMID>-userdata.yaml"
+#
+# Formål (Ekstra Bonus):
+#   1. Opdaterer apt pakkekatalog ved første boot
+#   2. Installerer systemværktøjer og QEMU guest agent (uden webserver)
+#   3. Konfigurerer SSH-velkomst-banner med runtime systemdata
+#   4. Enabler QEMU guest agent og UFW firewall
+# ==============================================================================
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - htop
+  - net-tools
+  - ufw
+  - qemu-guest-agent
+
+write_files:
+  - path: /etc/update-motd.d/99-standard-info
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      echo "=================================================================="
+      echo "  STANDARD LINUX SERVER"
+      echo "  Kunde:      __CUSTOMER_NAME__"
+      echo "  Hostname:   $(hostname)"
+      echo "  IP-adresse: $(hostname -I | awk '{print $1}')"
+      echo "  Rolle:      Standard Base Linux Server (Hardened)"
+      echo "=================================================================="
+
+runcmd:
+  - |
+    #!/bin/bash
+    set -e
+    systemctl enable --now qemu-guest-agent
+    ufw allow 22/tcp || true
+    ufw --force enable || true

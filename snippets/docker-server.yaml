@@ -1,0 +1,57 @@
+#cloud-config
+# ==============================================================================
+# CLOUD-INIT USER-DATA SNIPPET: Docker Server Rolle
+# ==============================================================================
+# Anvendes af Proxmox via:
+#   qm set <VMID> --cicustom "user=local:snippets/vm-<VMID>-userdata.yaml"
+#
+# Formål (Ekstra Bonus):
+#   1. Opdaterer apt pakkekatalog ved første boot
+#   2. Installerer Docker CE (docker.io) og QEMU guest agent
+#   3. Konfigurerer velkomst-banner med runtime systemdata
+#   4. Starter og enabler Docker systemd servicen automatisk
+# ==============================================================================
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - docker.io
+  - curl
+  - qemu-guest-agent
+
+write_files:
+  - path: /etc/docker-customer-info.txt
+    owner: root:root
+    permissions: '0644'
+    content: |
+      ==================================================================
+        DOCKER SERVER - KUNDESPECIFIK DRIFT
+      ==================================================================
+      Kunde:         __CUSTOMER_NAME__
+      Udrullet via:  Proxmox Cloud-Init Automation (Del 4)
+      Container RT:  Docker CE (Moby Engine)
+      ==================================================================
+
+  - path: /etc/update-motd.d/99-docker-info
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      echo "=================================================================="
+      echo "  DOCKER HOST STATUS"
+      echo "  Kunde:      __CUSTOMER_NAME__"
+      echo "  Hostname:   $(hostname)"
+      echo "  IP-adresse: $(hostname -I | awk '{print $1}')"
+      echo "  Docker:     $(docker --version 2>/dev/null || echo 'Afventer opstart')"
+      echo "=================================================================="
+
+runcmd:
+  - |
+    #!/bin/bash
+    set -e
+    systemctl daemon-reload
+    systemctl enable --now docker
+    systemctl enable --now qemu-guest-agent
+    # Start en simpel container på port 80 der beviser at Docker kører
+    docker run -d --name status-web --restart always -p 80:80 nginxdemos/hello:plain-text 2>/dev/null || true
