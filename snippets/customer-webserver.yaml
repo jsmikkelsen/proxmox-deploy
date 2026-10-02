@@ -1,0 +1,145 @@
+#cloud-config
+# ==============================================================================
+# CLOUD-INIT USER-DATA SNIPPET: Automatiseret Nginx Serverrolle
+# ==============================================================================
+# Denne snippet anvendes af Proxmox via parameteren:
+#   qm set <VMID> --cicustom "user=local:snippets/customer-webserver.yaml"
+#
+# Formål:
+#   1. Opdaterer pakkekataloget ved første boot
+#   2. Installerer Nginx webserver og QEMU guest agent
+#   3. Opretter en professionel, stilren index.html
+#   4. Erstatter automatisk placeholders med maskinens rigtige data
+# ==============================================================================
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - nginx
+  - curl
+  - qemu-guest-agent
+
+write_files:
+  - path: /var/www/html/index.html
+    owner: www-data:www-data
+    permissions: '0644'
+    content: |
+      <!DOCTYPE html>
+      <html lang="da">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Kundeserver Status - Proxmox Automation</title>
+          <style>
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              body {
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                  background: #0f172a;
+                  color: #f8fafc;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  min-height: 100vh;
+                  padding: 1.5rem;
+              }
+              .card {
+                  background: #1e293b;
+                  border: 1px solid #334155;
+                  border-radius: 14px;
+                  padding: 2.5rem;
+                  max-width: 520px;
+                  width: 100%;
+                  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+                  text-align: center;
+              }
+              .badge {
+                  display: inline-block;
+                  padding: 0.35rem 1rem;
+                  background: #0284c7;
+                  color: #ffffff;
+                  border-radius: 9999px;
+                  font-size: 0.8rem;
+                  font-weight: 700;
+                  letter-spacing: 0.05em;
+                  text-transform: uppercase;
+                  margin-bottom: 1.25rem;
+              }
+              h1 {
+                  font-size: 1.85rem;
+                  font-weight: 700;
+                  color: #38bdf8;
+                  margin-bottom: 0.5rem;
+              }
+              p.desc {
+                  color: #94a3b8;
+                  font-size: 0.95rem;
+                  margin-bottom: 1.75rem;
+                  line-height: 1.5;
+              }
+              .table {
+                  background: #0f172a;
+                  border: 1px solid #334155;
+                  border-radius: 8px;
+                  padding: 1.25rem;
+                  text-align: left;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 1rem;
+              }
+              .item-label {
+                  font-size: 0.75rem;
+                  color: #94a3b8;
+                  text-transform: uppercase;
+                  letter-spacing: 0.05em;
+                  margin-bottom: 0.25rem;
+              }
+              .item-value {
+                  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                  font-size: 1.15rem;
+                  font-weight: 600;
+                  color: #4ade80;
+              }
+              .footer {
+                  margin-top: 1.75rem;
+                  font-size: 0.75rem;
+                  color: #64748b;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              <span class="badge">Proxmox Cloud-Init Automatiseret</span>
+              <h1>Kundeserver i Drift</h1>
+              <p class="desc">Denne server er klonet og udrullet fuldautomatisk uden manuel konfiguration.</p>
+              
+              <div class="table">
+                  <div>
+                      <div class="item-label">Kundenavn</div>
+                      <div class="item-value">__CUSTOMER_NAME__</div>
+                  </div>
+                  <div>
+                      <div class="item-label">Server Hostname</div>
+                      <div class="item-value">__HOSTNAME__</div>
+                  </div>
+                  <div>
+                      <div class="item-label">IP-Adresse</div>
+                      <div class="item-value">__IP_ADDRESS__</div>
+                  </div>
+              </div>
+
+              <div class="footer">
+                  Udrullet via Proxmox VE CLI Automation &bull; Nginx &bull; Ubuntu
+              </div>
+          </div>
+      </body>
+      </html>
+
+runcmd:
+  # Hent serverens faktiske runtime data direkte fra OS
+  - HOSTNAME_VAL=$(hostname)
+  - IP_VAL=$(hostname -I | awk '{print $1}')
+  - sed -i "s/__HOSTNAME__/${HOSTNAME_VAL}/g" /var/www/html/index.html
+  - sed -i "s/__IP_ADDRESS__/${IP_VAL}/g" /var/www/html/index.html
+  - systemctl restart nginx
+  - systemctl enable --now qemu-guest-agent

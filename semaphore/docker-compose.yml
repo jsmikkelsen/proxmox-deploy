@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    container_name: semaphore-web-portal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Kør med intern indbygget BoltDB database (kræver ingen ekstern MySQL/PostgreSQL)
+      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_ADMIN_NAME: "Proxmox Admin"
+      SEMAPHORE_ADMIN_EMAIL: "admin@local.lan"
+      SEMAPHORE_ADMIN_PASSWORD: "AdminSecretPassword123!"
+      SEMAPHORE_ADMIN: "admin"
+    volumes:
+      # Persistent data for Semaphore UI
+      - semaphore_data:/var/lib/semaphore
+      # Adgang til scripts på hosten
+      - /root/proxmox-autodeploy:/scripts:ro
+      # Tillad Semaphore at køre qm/pct kommandoer via host socket eller SSH
+      - /root/.ssh:/root/.ssh:ro
+
+volumes:
+  semaphore_data:
