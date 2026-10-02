@@ -7,6 +7,7 @@
 #              Understøtter både KVM Virtuelle Maskiner (qm) og
 #              LXC Containere (pct) med Proxmox SDN (Software-Defined Networking),
 #              Cloud-Init, dynamiske serverroller og validering.
+#              Resource pool er valgfri.
 # ==============================================================================
 set -euo pipefail
 
@@ -37,7 +38,9 @@ error() { echo -e "${RED}[FEJL]${NC} $*" >&2; exit 1; }
 
 usage() {
     cat <<EOF
-Brug: $0 [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <BRIDGE/VNET> <POOL> [KUNDENAVN] [ROLLE] [TEMPLATE_ID]
+Brug: $0 [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <BRIDGE/VNET> [POOL] [KUNDENAVN] [ROLLE] [TEMPLATE_ID]
+
+Bemærk: [POOL] er valgfri. Angiv '-' eller 'none' hvis serveren ikke skal placeres i en pool.
 
 Rollemuligheder [ROLLE]:
   web     - Nginx webserver med dynamisk statusportal (standard)
@@ -45,19 +48,16 @@ Rollemuligheder [ROLLE]:
   base    - Standard minimal og hærdet Linux-server
 
 Eksempler med Proxmox SDN (Software-Defined Networking):
-  # 1. Kunde Alfa (SDN VNet 'alfa', VLAN 10):
+  # 1. Kunde Alfa (SDN VNet 'alfa', VLAN 10 med pool):
   $0 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
 
-  # 2. Kunde Bravo (SDN VNet 'bravo', VLAN 20 med Docker-rolle):
+  # 2. Uden pool (angiv '-' eller 'none'):
+  $0 301 test-srv01 192.168.100.155/24 192.168.100.1 vmbr0 - "Netic" web
+
+  # 3. Kunde Bravo (SDN VNet 'bravo', VLAN 20 med Docker-rolle):
   $0 121 bravo-dock01 192.168.20.10/24 192.168.20.1 bravo pool-bravo "Kunde Bravo" docker
 
-  # 3. Kunde Charlie (SDN VNet 'charlie', VLAN 30):
-  $0 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie pool-charlie "Kunde Charlie"
-
-  # 4. Kunde Delta (SDN VNet 'delta', VLAN 40):
-  $0 141 delta-web01 192.168.40.10/24 192.168.40.1 delta pool-delta "Kunde Delta"
-
-  # 5. Interaktiv menu (anbefalet for guidet udrulning):
+  # 4. Interaktiv menu (anbefalet for guidet udrulning):
   $0
 EOF
     exit 1
@@ -151,7 +151,7 @@ if [ "$#" -eq 0 ]; then
             read -rp "Indtast kundenavn: " CUST_NAME
             read -rp "Indtast SDN VNet / Bridge (fx alfa): " BRIDGE
             read -rp "Indtast gateway (fx 192.168.10.1): " GATEWAY
-            read -rp "Indtast resource pool (fx pool-custom): " POOL
+            read -rp "Indtast resource pool (valgfrit - tryk Enter for ingen): " POOL
             DEFAULT_IP="192.168.10.50/24"
             SUGGESTED_ID="301"
             SUGGESTED_HOST="kunde-${ROLE_PREFIX}01"
@@ -181,9 +181,9 @@ else
         TARGET_TYPE="vm"
     fi
 
-    # Validering: Mangler nødvendige argumenter? (Opgave punkt 6)
-    if [ "$#" -lt 6 ]; then
-        warn "Utilstrækkeligt antal argumenter angivet ($# givet, mindst 6 krævet)."
+    # Validering: Mangler nødvendige argumenter? (mindst ID, Host, IP, Gateway, Bridge)
+    if [ "$#" -lt 5 ]; then
+        warn "Utilstrækkeligt antal argumenter angivet ($# givet, mindst 5 krævet)."
         usage
     fi
 
@@ -192,10 +192,15 @@ else
     IP_CIDR="$3"
     GATEWAY="$4"
     BRIDGE="$5"
-    POOL="$6"
-    CUST_NAME="${7:-$POOL}"
+    POOL="${6:-}"
+    CUST_NAME="${7:-${POOL:-$HOSTNAME}}"
     ROLE="${8:-web}"
     TEMPLATE_ID="${9:-$DEFAULT_VM_TEMPLATE}"
+fi
+
+# Normaliser POOL (hvis bruger har angivet '-' eller 'none', behandles det som ingen pool)
+if [ "$POOL" = "-" ] || [ "$POOL" = "none" ] || [ "$POOL" = "null" ]; then
+    POOL=""
 fi
 
 # Normaliser rolle
@@ -275,10 +280,12 @@ if [ -z "$GATEWAY" ] || ! [[ "$GATEWAY" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.
     error "Default Gateway '$GATEWAY' er ugyldig. Angiv en gyldig IPv4-adresse (f.eks. 192.168.10.1)."
 fi
 
-# 2.7 Tjek eller opret Resource Pool
-if ! pvesh get /pools | grep -qw "$POOL"; then
-    info "Resource Pool '$POOL' findes ikke. Opretter pool automatisk..."
-    pvesh create /pools -poolid "$POOL"
+# 2.7 Tjek eller opret Resource Pool (hvis angivet)
+if [ -n "$POOL" ]; then
+    if ! pvesh get /pools | grep -qw "$POOL"; then
+        info "Resource Pool '$POOL' findes ikke. Opretter pool automatisk..."
+        pvesh create /pools -poolid "$POOL"
+    fi
 fi
 
 # 2.8 Tjek for SSH public key
@@ -295,10 +302,13 @@ ok "Input og miljø valideret uden fejl (SDN VNet '$BRIDGE' fundet)."
 # ------------------------------------------------------------------------------
 if [ "$TARGET_TYPE" = "vm" ]; then
     info "Trin [1/5]: Kloner template $TEMPLATE_ID -> VM $ID ($HOSTNAME)..."
-    if ! qm clone "$TEMPLATE_ID" "$ID" \
-        --name "$HOSTNAME" \
-        --pool "$POOL" \
-        --full 1; then
+    
+    CLONE_CMD=(qm clone "$TEMPLATE_ID" "$ID" --name "$HOSTNAME" --full 1)
+    if [ -n "$POOL" ]; then
+        CLONE_CMD+=(--pool "$POOL")
+    fi
+
+    if ! "${CLONE_CMD[@]}"; then
         error "Kunne ikke klone template $TEMPLATE_ID til VM $ID! Kontroller diskplads på storage."
     fi
 
@@ -344,9 +354,8 @@ elif [ "$TARGET_TYPE" = "ct" ]; then
     info "Anvender LXC template: $LXC_TAR"
 
     info "Trin [2/4]: Opretter LXC Container $ID ($HOSTNAME)..."
-    if ! pct create "$ID" "$LXC_TAR" \
+    PCT_CMD=(pct create "$ID" "$LXC_TAR" \
         --hostname "$HOSTNAME" \
-        --pool "$POOL" \
         --cores 2 \
         --memory 1024 \
         --swap 512 \
@@ -356,7 +365,12 @@ elif [ "$TARGET_TYPE" = "ct" ]; then
         --ssh-public-keys "$SSH_PUBKEY_FILE" \
         --features nesting=1 \
         --ostype ubuntu \
-        --start 1; then
+        --start 1)
+    if [ -n "$POOL" ]; then
+        PCT_CMD+=(--pool "$POOL")
+    fi
+
+    if ! "${PCT_CMD[@]}"; then
         error "Kunne ikke oprette LXC container $ID! Kontroller storage og ressourcer."
     fi
 
@@ -396,7 +410,7 @@ elif [ "$TARGET_TYPE" = "ct" ]; then
             <div class='row'><div class='label'>Kunde</div><div class='value'>$CUST_NAME</div></div>
             <div class='row'><div class='label'>Hostname</div><div class='value'>$HOSTNAME</div></div>
             <div class='row'><div class='label'>IP-Adresse</div><div class='value'>$IP_RAW</div></div>
-            <div class='row'><div class='label'>SDN VNet</div><div class='value'>$BRIDGE</div></div>
+            <div class='row'><div class='label'>SDN VNet / Bridge</div><div class='value'>$BRIDGE</div></div>
             <div class='row'><div class='label'>Rolle</div><div class='value'>Nginx Webserver</div></div>
         </div>
     </div>
@@ -429,8 +443,8 @@ echo "  ID:             $ID"
 echo "  Hostname:       $HOSTNAME"
 echo "  Kunde:          $CUST_NAME"
 echo "  Serverrolle:    $ROLE_DISPLAY"
-echo "  Resource Pool:  $POOL"
-echo "  SDN VNet:       $BRIDGE"
+echo "  Resource Pool:  ${POOL:-(ingen pool)}"
+echo "  SDN VNet/Bridge:$BRIDGE"
 echo "  IP-Adresse:     $IP_ONLY"
 echo "  Default Gateway:$GATEWAY"
 echo "  SSH Bruger:     $DEFAULT_USER"
