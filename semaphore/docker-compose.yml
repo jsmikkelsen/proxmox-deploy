@@ -8,19 +8,26 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Kør med intern indbygget BoltDB database (kræver ingen ekstern MySQL/PostgreSQL)
-      SEMAPHORE_DB_DIALECT: bolt
+      # Embedded SQLite database (BoltDB er udgået i nyere Semaphore versioner)
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_PATH: /var/lib/semaphore/semaphore.sqlite
+      SEMAPHORE_DB: /var/lib/semaphore/semaphore.sqlite
+
+      # Opretter standard admin-bruger ved første opstart
+      SEMAPHORE_ADMIN: admin
       SEMAPHORE_ADMIN_NAME: "Proxmox Admin"
       SEMAPHORE_ADMIN_EMAIL: "admin@local.lan"
       SEMAPHORE_ADMIN_PASSWORD: "AdminSecretPassword123!"
-      SEMAPHORE_ADMIN: "admin"
+
+      # Påkrævet 32-byte base64 krypteringsnøgle til Semaphore secrets/nøgler
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "gs72mPntFATGJs9qK0pQ0rKtfidlexiMjYCH9gWKhTU="
     volumes:
-      # Persistent data for Semaphore UI
+      # Persistent data for Semaphore UI SQLite database
       - semaphore_data:/var/lib/semaphore
-      # Adgang til scripts fra værten
-      - /root/proxmox-deploy:/scripts:ro
-      # SSH nøgler til at eksekvere kommandoer på Proxmox hosten
-      - /root/.ssh:/root/.ssh:ro
+      - semaphore_config:/etc/semaphore
+      # Adgang til deployment scripts (relativ sti til forældremappen)
+      - ../:/scripts:ro
 
 volumes:
   semaphore_data:
+  semaphore_config:
