@@ -17,9 +17,9 @@ services:
     volumes:
       # Persistent data for Semaphore UI
       - semaphore_data:/var/lib/semaphore
-      # Adgang til scripts på hosten
-      - /root/proxmox-autodeploy:/scripts:ro
-      # Tillad Semaphore at køre qm/pct kommandoer via host socket eller SSH
+      # Adgang til scripts fra værten
+      - /root/proxmox-deploy:/scripts:ro
+      # SSH nøgler til at eksekvere kommandoer på Proxmox hosten
       - /root/.ssh:/root/.ssh:ro
 
 volumes:
