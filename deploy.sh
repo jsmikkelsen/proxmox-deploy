@@ -5,7 +5,8 @@
 # FORFATTER: Jacob Mikkelsen
 # BESKRIVELSE: Universelt deployment-script til Proxmox VE.
 #              Understøtter både KVM Virtuelle Maskiner (qm) og
-#              LXC Containere (pct) med Cloud-Init, rollevalg og validering.
+#              LXC Containere (pct) med Proxmox SDN (Software-Defined Networking),
+#              Cloud-Init, dynamiske serverroller og validering.
 # ==============================================================================
 set -euo pipefail
 
@@ -36,24 +37,27 @@ error() { echo -e "${RED}[FEJL]${NC} $*" >&2; exit 1; }
 
 usage() {
     cat <<EOF
-Brug: $0 [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <BRIDGE> <POOL> [KUNDENAVN] [ROLLE] [TEMPLATE_ID]
+Brug: $0 [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <BRIDGE/VNET> <POOL> [KUNDENAVN] [ROLLE] [TEMPLATE_ID]
 
 Rollemuligheder [ROLLE]:
   web     - Nginx webserver med dynamisk statusportal (standard)
   docker  - Docker CE container-platform
   base    - Standard minimal og hærdet Linux-server
 
-Eksempler:
-  # 1. Standard VM deployment (Opgaveformat - default rolle: web):
-  $0 111 alfa-web01 192.168.10.10/24 192.168.10.1 vmbr10 pool-alfa "Kunde Alfa"
+Eksempler med Proxmox SDN (Software-Defined Networking):
+  # 1. Kunde Alfa (SDN VNet 'alfa', VLAN 10):
+  $0 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
 
-  # 2. VM deployment med Docker serverrolle (Ekstra Bonus):
-  $0 112 alfa-dock01 192.168.10.11/24 192.168.10.1 vmbr10 pool-alfa "Kunde Alfa" docker
+  # 2. Kunde Bravo (SDN VNet 'bravo', VLAN 20 med Docker-rolle):
+  $0 121 bravo-dock01 192.168.20.10/24 192.168.20.1 bravo pool-bravo "Kunde Bravo" docker
 
-  # 3. Eksplicit LXC Container deployment:
-  $0 ct 221 bravo-web01 192.168.20.10/24 192.168.20.1 vmbr20 pool-bravo "Kunde Bravo"
+  # 3. Kunde Charlie (SDN VNet 'charlie', VLAN 30):
+  $0 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie pool-charlie "Kunde Charlie"
 
-  # 4. Interaktiv menu (anbefalet for nem og guidet udrulning):
+  # 4. Kunde Delta (SDN VNet 'delta', VLAN 40):
+  $0 141 delta-web01 192.168.40.10/24 192.168.40.1 delta pool-delta "Kunde Delta"
+
+  # 5. Interaktiv menu (anbefalet for guidet udrulning):
   $0
 EOF
     exit 1
@@ -65,7 +69,7 @@ EOF
 if [ "$#" -eq 0 ]; then
     # INTERAKTIV MENU (BONUS OPGAVE)
     echo -e "${CYAN}========================================================================${NC}"
-    echo -e "${CYAN}          PROXMOX AUTOMATISERET DEPLOYMENT PLATFORM                     ${NC}"
+    echo -e "${CYAN}       PROXMOX SDN AUTOMATISERET DEPLOYMENT PLATFORM                    ${NC}"
     echo -e "${CYAN}========================================================================${NC}"
     echo ""
     echo "Trin 1: Vælg virtualiseringstype:"
@@ -91,11 +95,11 @@ if [ "$#" -eq 0 ]; then
     esac
 
     echo ""
-    echo "Trin 3: Vælg kunde (Bonus):"
-    echo "  1) Kunde Alfa    (VLAN 10, vmbr10, 192.168.10.0/24)"
-    echo "  2) Kunde Bravo   (VLAN 20, vmbr20, 192.168.20.0/24)"
-    echo "  3) Kunde Charlie (VLAN 30, vmbr30, 192.168.30.0/24)"
-    echo "  4) Kunde Delta   (VLAN 40, vmbr40, 192.168.40.0/24)"
+    echo "Trin 3: Vælg kunde (Proxmox SDN Zone 'kundenet'):"
+    echo "  1) Kunde Alfa    (SDN VNet: alfa,    VLAN 10, 192.168.10.0/24)"
+    echo "  2) Kunde Bravo   (SDN VNet: bravo,   VLAN 20, 192.168.20.0/24)"
+    echo "  3) Kunde Charlie (SDN VNet: charlie, VLAN 30, 192.168.30.0/24)"
+    echo "  4) Kunde Delta   (SDN VNet: delta,   VLAN 40, 192.168.40.0/24)"
     echo "  5) Anden / Brugerdefineret"
     read -rp "Valg [1-5]: " CUST_CHOICE
 
@@ -109,7 +113,7 @@ if [ "$#" -eq 0 ]; then
     case "$CUST_CHOICE" in
         1)
             CUST_NAME="Kunde Alfa"
-            BRIDGE="vmbr10"
+            BRIDGE="alfa"
             GATEWAY="192.168.10.1"
             POOL="pool-alfa"
             DEFAULT_IP="192.168.10.10/24"
@@ -118,7 +122,7 @@ if [ "$#" -eq 0 ]; then
             ;;
         2)
             CUST_NAME="Kunde Bravo"
-            BRIDGE="vmbr20"
+            BRIDGE="bravo"
             GATEWAY="192.168.20.1"
             POOL="pool-bravo"
             DEFAULT_IP="192.168.20.10/24"
@@ -127,7 +131,7 @@ if [ "$#" -eq 0 ]; then
             ;;
         3)
             CUST_NAME="Kunde Charlie"
-            BRIDGE="vmbr30"
+            BRIDGE="charlie"
             GATEWAY="192.168.30.1"
             POOL="pool-charlie"
             DEFAULT_IP="192.168.30.10/24"
@@ -136,7 +140,7 @@ if [ "$#" -eq 0 ]; then
             ;;
         4)
             CUST_NAME="Kunde Delta"
-            BRIDGE="vmbr40"
+            BRIDGE="delta"
             GATEWAY="192.168.40.1"
             POOL="pool-delta"
             DEFAULT_IP="192.168.40.10/24"
@@ -145,7 +149,7 @@ if [ "$#" -eq 0 ]; then
             ;;
         *)
             read -rp "Indtast kundenavn: " CUST_NAME
-            read -rp "Indtast bridge (fx vmbr10): " BRIDGE
+            read -rp "Indtast SDN VNet / Bridge (fx alfa): " BRIDGE
             read -rp "Indtast gateway (fx 192.168.10.1): " GATEWAY
             read -rp "Indtast resource pool (fx pool-custom): " POOL
             DEFAULT_IP="192.168.10.50/24"
@@ -216,7 +220,7 @@ esac
 # ------------------------------------------------------------------------------
 # 2. VALIDERINGS- OG SIKKERHEDSKONTROL (OPGAVE PUNKT 6)
 # ------------------------------------------------------------------------------
-info "Starter validering af input og miljø..."
+info "Starter validering af input og Proxmox miljø..."
 
 # 2.1 Er ID angivet og et gyldigt heltal?
 if [ -z "$ID" ] || ! [[ "$ID" =~ ^[0-9]+$ ]]; then
@@ -244,9 +248,18 @@ if [ "$TARGET_TYPE" = "vm" ]; then
     fi
 fi
 
-# 2.4 Tjek om Linux Bridge findes på Proxmox serveren
+# 2.4 Tjek om Linux Bridge eller SDN VNet findes i operativsystemet
 if ! ip link show "$BRIDGE" &>/dev/null; then
-    error "Linux Bridge '$BRIDGE' findes ikke på Proxmox værten! Kontroller netværkskonfigurationen."
+    # Undersøg om det er et SDN VNet der mangler 'pvesdn reload' (Apply)
+    if [ -f "/etc/pve/sdn/vnets.cfg" ] && grep -qw "$BRIDGE" /etc/pve/sdn/vnets.cfg 2>/dev/null; then
+        info "SDN VNet '$BRIDGE' er defineret, men ikke aktiv i kernen. Forsøger at genindlæse SDN (pvesdn reload)..."
+        pvesdn reload || true
+        sleep 1
+    fi
+    
+    if ! ip link show "$BRIDGE" &>/dev/null; then
+        error "Netværk '$BRIDGE' findes ikke som aktiv bridge/VNet på Proxmox værten! Hvis du bruger SDN, skal du klikke 'Apply' i Web GUI (under SDN) eller køre 'pvesdn reload' på værten."
+    fi
 fi
 
 # 2.5 Er IP-adressen angivet og formateret korrekt som IPv4/CIDR?
@@ -275,7 +288,7 @@ if [ ! -f "$SSH_PUBKEY_FILE" ]; then
     ssh-keygen -t ed25519 -N "" -f "$HOME/.ssh/id_rsa"
 fi
 
-ok "Input og miljø valideret uden fejl."
+ok "Input og miljø valideret uden fejl (SDN VNet '$BRIDGE' fundet)."
 
 # ------------------------------------------------------------------------------
 # 3. UDRULNING: KVM VIRTUAL MACHINE (VM)
@@ -289,7 +302,7 @@ if [ "$TARGET_TYPE" = "vm" ]; then
         error "Kunne ikke klone template $TEMPLATE_ID til VM $ID! Kontroller diskplads på storage."
     fi
 
-    info "Trin [2/5]: Forbinder netkort til bridge '$BRIDGE'..."
+    info "Trin [2/5]: Forbinder netkort til SDN VNet '$BRIDGE'..."
     qm set "$ID" --net0 "virtio,bridge=$BRIDGE"
 
     info "Trin [3/5]: Klargør Cloud-Init user-data snippet for rolle '$ROLE_DISPLAY'..."
@@ -383,6 +396,7 @@ elif [ "$TARGET_TYPE" = "ct" ]; then
             <div class='row'><div class='label'>Kunde</div><div class='value'>$CUST_NAME</div></div>
             <div class='row'><div class='label'>Hostname</div><div class='value'>$HOSTNAME</div></div>
             <div class='row'><div class='label'>IP-Adresse</div><div class='value'>$IP_RAW</div></div>
+            <div class='row'><div class='label'>SDN VNet</div><div class='value'>$BRIDGE</div></div>
             <div class='row'><div class='label'>Rolle</div><div class='value'>Nginx Webserver</div></div>
         </div>
     </div>
@@ -416,7 +430,7 @@ echo "  Hostname:       $HOSTNAME"
 echo "  Kunde:          $CUST_NAME"
 echo "  Serverrolle:    $ROLE_DISPLAY"
 echo "  Resource Pool:  $POOL"
-echo "  Linux Bridge:   $BRIDGE"
+echo "  SDN VNet:       $BRIDGE"
 echo "  IP-Adresse:     $IP_ONLY"
 echo "  Default Gateway:$GATEWAY"
 echo "  SSH Bruger:     $DEFAULT_USER"

@@ -77,29 +77,29 @@ Du vælger blot:
 *Scriptet udfylder og foreslår automatisk Bridge, Gateway, Resource Pool, IP og Hostname!*
 
 #### Metode B: Direkte CLI-kommandoer (Opgavekrav)
-Format: `./deploy.sh [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <BRIDGE> <POOL> [KUNDE] [ROLLE]`
+Format: `./deploy.sh [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <SDN_VNET> <POOL> [KUNDE] [ROLLE]`
 
 ```bash
-# Kunde Alfa (VLAN 10, vmbr10, Nginx webserver):
-./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 vmbr10 pool-alfa "Kunde Alfa"
+# Kunde Alfa (SDN VNet 'alfa', VLAN 10, Nginx webserver):
+./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
 
-# Kunde Bravo (VLAN 20, vmbr20, Nginx webserver):
-./deploy.sh 121 bravo-web01 192.168.20.10/24 192.168.20.1 vmbr20 pool-bravo "Kunde Bravo"
+# Kunde Bravo (SDN VNet 'bravo', VLAN 20, Nginx webserver):
+./deploy.sh 121 bravo-web01 192.168.20.10/24 192.168.20.1 bravo pool-bravo "Kunde Bravo"
 
-# Kunde Charlie (VLAN 30, vmbr30, Nginx webserver):
-./deploy.sh 131 charlie-web01 192.168.30.10/24 192.168.30.1 vmbr30 pool-charlie "Kunde Charlie"
+# Kunde Charlie (SDN VNet 'charlie', VLAN 30, Nginx webserver):
+./deploy.sh 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie pool-charlie "Kunde Charlie"
 
-# Kunde Delta (VLAN 40, vmbr40, Nginx webserver):
-./deploy.sh 141 delta-web01 192.168.40.10/24 192.168.40.1 vmbr40 pool-delta "Kunde Delta"
+# Kunde Delta (SDN VNet 'delta', VLAN 40, Nginx webserver):
+./deploy.sh 141 delta-web01 192.168.40.10/24 192.168.40.1 delta pool-delta "Kunde Delta"
 ```
 
 #### Udrulning med andre Serverroller (Ekstra Bonus)
 ```bash
 # Deploy en Docker-server til Kunde Alfa:
-./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 vmbr10 pool-alfa "Kunde Alfa" docker
+./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" docker
 
 # Deploy en minimal standard base-server til Kunde Bravo:
-./deploy.sh 122 bravo-srv01 192.168.20.11/24 192.168.20.1 vmbr20 pool-bravo "Kunde Bravo" base
+./deploy.sh 122 bravo-srv01 192.168.20.11/24 192.168.20.1 bravo pool-bravo "Kunde Bravo" base
 ```
 
 ---
@@ -107,7 +107,7 @@ Format: `./deploy.sh [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <BRIDGE> <POOL>
 ### Trin 4: Udrulning af LXC Container (CT)
 Vil du oprette en container i stedet for en virtuel maskine, tilføjer du blot `ct` foran:
 ```bash
-./deploy.sh ct 211 alfa-ct01 192.168.10.20/24 192.168.10.1 vmbr10 pool-alfa "Kunde Alfa" web
+./deploy.sh ct 211 alfa-ct01 192.168.10.20/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" web
 ```
 
 ---
@@ -119,8 +119,8 @@ Slet maskinen og redeploy på under 40 sekunder:
 qm stop 111 && qm destroy 111 --purge
 
 # 2. Redeploy med én kommando
-./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 vmbr10 pool-alfa "Kunde Alfa"
-
+./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
+```
 # 3. Verificér webserver
 curl http://192.168.10.10/
 ```
