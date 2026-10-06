@@ -63,7 +63,7 @@ ${BOLD}Eksempler:${NC}
   $0 status
 
   # 3. Udrul en specifik server manuelt og tilføj til state:
-  $0 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" web
+  $0 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa" web
 
   # 4. Udrul uden resource pool (angiv '-' eller 'none'):
   $0 301 netic-srv01 192.168.100.155/24 192.168.100.1 vmbr0 - "Netic" web
@@ -546,22 +546,22 @@ if [ "$#" -eq 0 ]; then
     case "$CUST_CHOICE" in
         1)
             CUST_NAME="Kunde Alfa"; BRIDGE="alfa"; GATEWAY="192.168.10.1"
-            POOL="pool-alfa"; DEFAULT_IP="192.168.10.10/24"; SUGGESTED_ID="111"
+            POOL="Pool_KundeA"; DEFAULT_IP="192.168.10.10/24"; SUGGESTED_ID="111"
             SUGGESTED_HOST="alfa-${ROLE_PREFIX}01"
             ;;
         2)
             CUST_NAME="Kunde Bravo"; BRIDGE="bravo"; GATEWAY="192.168.20.1"
-            POOL="pool-bravo"; DEFAULT_IP="192.168.20.10/24"; SUGGESTED_ID="121"
+            POOL="Pool_KundeB"; DEFAULT_IP="192.168.20.10/24"; SUGGESTED_ID="121"
             SUGGESTED_HOST="bravo-${ROLE_PREFIX}01"
             ;;
         3)
             CUST_NAME="Kunde Charlie"; BRIDGE="charlie"; GATEWAY="192.168.30.1"
-            POOL="pool-charlie"; DEFAULT_IP="192.168.30.10/24"; SUGGESTED_ID="131"
+            POOL="Pool_KundeC"; DEFAULT_IP="192.168.30.10/24"; SUGGESTED_ID="131"
             SUGGESTED_HOST="charlie-${ROLE_PREFIX}01"
             ;;
         4)
             CUST_NAME="Kunde Delta"; BRIDGE="delta"; GATEWAY="192.168.40.1"
-            POOL="pool-delta"; DEFAULT_IP="192.168.40.10/24"; SUGGESTED_ID="141"
+            POOL="Pool_KundeD"; DEFAULT_IP="192.168.40.10/24"; SUGGESTED_ID="141"
             SUGGESTED_HOST="delta-${ROLE_PREFIX}01"
             ;;
         *)

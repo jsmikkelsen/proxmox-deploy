@@ -1,6 +1,6 @@
 # Proxmox Automated Deployment Platform - Desired State Registry
 # Format: ID,HOSTNAME,IP_CIDR,GATEWAY,BRIDGE,POOL,CUST_NAME,ROLE,TARGET_TYPE
-111,alfa-web01,192.168.10.10/24,192.168.10.1,alfa,pool-alfa,Kunde Alfa,web,vm
-121,bravo-web01,192.168.20.10/24,192.168.20.1,bravo,pool-bravo,Kunde Bravo,web,vm
-131,charlie-web01,192.168.30.10/24,192.168.30.1,charlie,pool-charlie,Kunde Charlie,web,vm
-141,delta-web01,192.168.40.10/24,192.168.40.1,delta,pool-delta,Kunde Delta,web,vm
+111,alfa-web01,192.168.10.10/24,192.168.10.1,alfa,Pool_KundeA,Kunde Alfa,web,vm
+121,bravo-web01,192.168.20.10/24,192.168.20.1,bravo,Pool_KundeB,Kunde Bravo,web,vm
+131,charlie-web01,192.168.30.10/24,192.168.30.1,charlie,Pool_KundeC,Kunde Charlie,web,vm
+141,delta-web01,192.168.40.10/24,192.168.40.1,delta,Pool_KundeD,Kunde Delta,web,vm

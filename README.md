@@ -81,25 +81,25 @@ Format: `./deploy.sh [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <SDN_VNET> <POO
 
 ```bash
 # Kunde Alfa (SDN VNet 'alfa', VLAN 10, Nginx webserver):
-./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
+./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa"
 
 # Kunde Bravo (SDN VNet 'bravo', VLAN 20, Nginx webserver):
-./deploy.sh 121 bravo-web01 192.168.20.10/24 192.168.20.1 bravo pool-bravo "Kunde Bravo"
+./deploy.sh 121 bravo-web01 192.168.20.10/24 192.168.20.1 bravo Pool_KundeB "Kunde Bravo"
 
 # Kunde Charlie (SDN VNet 'charlie', VLAN 30, Nginx webserver):
-./deploy.sh 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie pool-charlie "Kunde Charlie"
+./deploy.sh 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie Pool_KundeC "Kunde Charlie"
 
 # Kunde Delta (SDN VNet 'delta', VLAN 40, Nginx webserver):
-./deploy.sh 141 delta-web01 192.168.40.10/24 192.168.40.1 delta pool-delta "Kunde Delta"
+./deploy.sh 141 delta-web01 192.168.40.10/24 192.168.40.1 delta Pool_KundeD "Kunde Delta"
 ```
 
 #### Udrulning med andre Serverroller (Ekstra Bonus)
 ```bash
 # Deploy en Docker-server til Kunde Alfa:
-./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" docker
+./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa" docker
 
 # Deploy en minimal standard base-server til Kunde Bravo:
-./deploy.sh 122 bravo-srv01 192.168.20.11/24 192.168.20.1 bravo pool-bravo "Kunde Bravo" base
+./deploy.sh 122 bravo-srv01 192.168.20.11/24 192.168.20.1 bravo Pool_KundeB "Kunde Bravo" base
 ```
 
 ---
@@ -107,7 +107,7 @@ Format: `./deploy.sh [vm|ct] <ID> <HOSTNAME> <IP/CIDR> <GATEWAY> <SDN_VNET> <POO
 ### Trin 4: Udrulning af LXC Container (CT)
 Vil du oprette en container i stedet for en virtuel maskine, tilføjer du blot `ct` foran:
 ```bash
-./deploy.sh ct 211 alfa-ct01 192.168.10.20/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" web
+./deploy.sh ct 211 alfa-ct01 192.168.10.20/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa" web
 ```
 
 ---

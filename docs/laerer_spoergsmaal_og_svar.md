@@ -130,7 +130,7 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
   * **Interaktivt:** Menuen i `deploy.sh` spørger administratoren om serverrolle (1: Web, 2: Docker, 3: Base).
   * **Via CLI:** Sendes som 8. argument, fx:
     ```bash
-    ./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" docker
+    ./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa" docker
     ```
   * **I koden:** Scriptet peger på den relevante fil i `snippets/`:
     * Webserver: `snippets/customer-webserver.yaml` (installerer Nginx og genererer HTML)
@@ -215,7 +215,7 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
   Isolation opretholdes på tre niveauer:
   1. **Layer 2 (Data Link) via SDN:** Hver kunde er isoleret i sit eget SDN VNet (`alfa`, `bravo`, `charlie`, `delta`) med separate 802.1Q tags (10, 20, 30, 40) under zonen `kundenet`. Broadcasts og ARP-pakker kan ikke krydse mellem VNets.
   2. **Layer 3 (Network):** Hver kunde har sit eget IP-subnet (fx `192.168.10.0/24`, `192.168.20.0/24`). Al kommunikation mellem subnets skal passere virksomhedens firewall/router.
-  3. **Management / Proxmox RBAC:** Hver VM kan placeres i en dedikeret Proxmox Resource Pool (`pool-alfa`, etc.), hvor adgangskontrol styrer, hvilke administratorer/brugere der må se og administrere maskinerne.
+  3. **Management / Proxmox RBAC:** Hver VM kan placeres i en dedikeret Proxmox Resource Pool (`Pool_KundeA`, etc.), hvor adgangskontrol styrer, hvilke administratorer/brugere der må se og administrere maskinerne.
 
 ---
 
@@ -241,7 +241,7 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
      ```
   3. Man genudruller med én enkelt script-kommando:
      ```bash
-     ./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
+     ./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa"
      ```
      *(Eller endnu smartere: Man kører blot `./deploy.sh sync`, som automatisk opdager den manglende VM og genopbygger den ud fra state-filen).*
   4. Efter 35 sekunder tilgår man `http://192.168.10.10/` og `ssh sysadmin@192.168.10.10`. Alt fungerer fejlfrit uden at administratoren har rørt ved maskinen.

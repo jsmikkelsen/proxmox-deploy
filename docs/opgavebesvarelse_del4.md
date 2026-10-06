@@ -29,7 +29,7 @@ Formålet med denne del af projektet er at overgå fra tidskrævende, manuelle i
   * **Kunde Charlie:** VNet `charlie` (Tag 30)
   * **Kunde Delta:** VNet `delta` (Tag 40)  
   Servernes netkort tilknyttes direkte til det respektive VNet (`bridge=alfa`, osv.), hvilket sikrer absolut L2-isolation.
-* **Placering i Resource Pool:** Hver VM placeres i kundens respektive pool (`pool-alfa`, `pool-bravo`, `pool-charlie`, `pool-delta`), hvilket sikrer rollebaseret adgangskontrol (RBAC) og ressourceoverblik.
+* **Placering i Resource Pool:** Hver VM placeres i kundens respektive pool (`Pool_KundeA`, `Pool_KundeB`, `Pool_KundeC`, `Pool_KundeD`), hvilket sikrer rollebaseret adgangskontrol (RBAC) og ressourceoverblik.
 
 ---
 
@@ -116,26 +116,26 @@ Udrulningen af de fire kundemaskiner blev gennemført med følgende kommandoer m
 
 ```bash
 # Kunde Alfa (SDN VNet alfa, VLAN 10)
-./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
+./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa"
 
 # Kunde Bravo (SDN VNet bravo, VLAN 20)
-./deploy.sh 121 bravo-web01 192.168.20.10/24 192.168.20.1 bravo pool-bravo "Kunde Bravo"
+./deploy.sh 121 bravo-web01 192.168.20.10/24 192.168.20.1 bravo Pool_KundeB "Kunde Bravo"
 
 # Kunde Charlie (SDN VNet charlie, VLAN 30)
-./deploy.sh 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie pool-charlie "Kunde Charlie"
+./deploy.sh 131 charlie-web01 192.168.30.10/24 192.168.30.1 charlie Pool_KundeC "Kunde Charlie"
 
 # Kunde Delta (SDN VNet delta, VLAN 40)
-./deploy.sh 141 delta-web01 192.168.40.10/24 192.168.40.1 delta pool-delta "Kunde Delta"
+./deploy.sh 141 delta-web01 192.168.40.10/24 192.168.40.1 delta Pool_KundeD "Kunde Delta"
 ```
 
 ### Verifikationstabel:
 
 | Kunde | VM-ID | Hostname | IP-Adresse | SDN VNet | VLAN Tag | Resource Pool | Web HTTP Status |
 | :--- | :---: | :--- | :--- | :---: | :---: | :--- | :---: |
-| **Alfa** | 111 | `alfa-web01` | `192.168.10.10` | `alfa` | 10 | `pool-alfa` | HTTP 200 OK |
-| **Bravo**| 121 | `bravo-web01`| `192.168.20.10` | `bravo` | 20 | `pool-bravo`| HTTP 200 OK |
-| **Charlie**| 131 | `charlie-web01` | `192.168.30.10` | `charlie` | 30 | `pool-charlie` | HTTP 200 OK |
-| **Delta**| 141 | `delta-web01` | `192.168.40.10` | `delta` | 40 | `pool-delta` | HTTP 200 OK |
+| **Alfa** | 111 | `alfa-web01` | `192.168.10.10` | `alfa` | 10 | `Pool_KundeA` | HTTP 200 OK |
+| **Bravo**| 121 | `bravo-web01`| `192.168.20.10` | `bravo` | 20 | `Pool_KundeB`| HTTP 200 OK |
+| **Charlie**| 131 | `charlie-web01` | `192.168.30.10` | `charlie` | 30 | `Pool_KundeC` | HTTP 200 OK |
+| **Delta**| 141 | `delta-web01` | `192.168.40.10` | `delta` | 40 | `Pool_KundeD` | HTTP 200 OK |
 
 ---
 
@@ -147,10 +147,10 @@ For at dokumentere, at udrulningen er 100% reproducerbar uden manuelle indgreb, 
 Hver gang en server udrulles, registreres dens specifikationer automatisk i `deployments.csv`:
 ```csv
 # ID,HOSTNAME,IP_CIDR,GATEWAY,BRIDGE,POOL,CUST_NAME,ROLE,TARGET_TYPE
-111,alfa-web01,192.168.10.10/24,192.168.10.1,alfa,pool-alfa,Kunde Alfa,web,vm
-121,bravo-web01,192.168.20.10/24,192.168.20.1,bravo,pool-bravo,Kunde Bravo,web,vm
-131,charlie-web01,192.168.30.10/24,192.168.30.1,charlie,pool-charlie,Kunde Charlie,web,vm
-141,delta-web01,192.168.40.10/24,192.168.40.1,delta,pool-delta,Kunde Delta,web,vm
+111,alfa-web01,192.168.10.10/24,192.168.10.1,alfa,Pool_KundeA,Kunde Alfa,web,vm
+121,bravo-web01,192.168.20.10/24,192.168.20.1,bravo,Pool_KundeB,Kunde Bravo,web,vm
+131,charlie-web01,192.168.30.10/24,192.168.30.1,charlie,Pool_KundeC,Kunde Charlie,web,vm
+141,delta-web01,192.168.40.10/24,192.168.40.1,delta,Pool_KundeD,Kunde Delta,web,vm
 ```
 
 Med kommandoen `./deploy.sh status` kan administratoren til enhver tid få et overblik over samtlige serveres aktuelle tilstand i Proxmox.
@@ -200,7 +200,7 @@ Hvis scriptet kaldes uden parametre (`./deploy.sh`), præsenteres administratore
 3. **Kunde:** Valg mellem Kunde Alfa, Bravo, Charlie, Delta (SDN VNets) eller Brugerdefineret.
 
 Scriptet slår derefter automatisk de tilhørende infrastrukturværdier op:
-* Korrekt Resource Pool (`pool-alfa`, `pool-bravo`, etc.)
+* Korrekt Resource Pool (`Pool_KundeA`, `Pool_KundeB`, etc.)
 * Korrekt SDN VNet (`alfa`, `bravo`, `charlie`, `delta`)
 * Korrekt Gateway (`192.168.10.1`, etc.)
 * Forslag til næste ledige IP-adresse og standardiseret hostname (fx `alfa-web01`, `bravo-dock01`).
@@ -226,7 +226,7 @@ Løsningen er udvidet med understøttelse af tre forskellige serverroller, som k
 
 Eksempel på udrulning af en Docker-server til Kunde Alfa:
 ```bash
-./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" docker
+./deploy.sh 112 alfa-dock01 192.168.10.11/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa" docker
 ```
 
 ---

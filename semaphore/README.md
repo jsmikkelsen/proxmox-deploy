@@ -92,7 +92,7 @@ Når du er logget ind første gang, konfigureres portalen i 4 hurtige trin:
 Når du klikker på **Run** på din Task Template, indtaster du blot parametrene i pop-up vinduet:
 
 ```text
-111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa" web
+111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa Pool_KundeA "Kunde Alfa" web
 ```
 
 Eller for en server uden pool:
