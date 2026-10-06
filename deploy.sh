@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# SCRIPT: deploy.sh
-# PROJEKT: Infrastrukturprojekt Del 4 - Automatiseret Deployment
-# FORFATTER: Jacob Mikkelsen
-# BESKRIVELSE: Universelt deployment- og state-styringsscript til Proxmox VE.
-#              - Understøtter KVM VM (qm) og LXC Containers (pct).
-#              - Proxmox SDN (Software-Defined Networking) integreret.
-#              - Deklarativ State Management via deployments.csv.
-#              - Automatisk genopbygning (reconciliation loop) af slettede VM'er.
-#              - Valgfri Resource Pool og dynamiske serverroller.
-# ==============================================================================
 set -euo pipefail
 
 # ------------------------------------------------------------------------------
