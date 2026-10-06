@@ -4,7 +4,7 @@ Læreren har specifikt varslet:
 > *"forvent at i bliver spurgt ind til dele af jeres scripts - forvent at jeg spørger ind til hvor man ændrer i scriptet for at XX sker."*  
 > *"Dette er IKKE en opgave i automatisering med ansible / lign software, det kommer senere."*
 
-Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både `deploy.sh`, `create_template_vm.sh`, Cloud-Init YAML-snippets og Proxmox SDN CLI.
+Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både `deploy.sh`, `create_template_vm.sh`, Cloud-Init YAML-snippets, Proxmox SDN CLI og State Management.
 
 ---
 
@@ -93,10 +93,7 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
   ```bash
   qm clone "$TEMPLATE_ID" "$ID" --name "$HOSTNAME" --pool "$POOL" --full 1
   ```
-  Og for containers under:
-  ```bash
-  pct create "$ID" ... --pool "$POOL"
-  ```
+  *Bemærk:* Hvis der ikke angives en pool (eller hvis der angives `-`), udelader scriptet automatisk `--pool`, så maskinen udrulles frit uden for en pool uden fejl.
 
 ---
 
@@ -195,13 +192,12 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
 ### Spørgsmål 16: "Hvor i scriptet håndteres validering og fejl (Opgave punkt 6)?"
 * **Svar:**  
   I `deploy.sh` under sektion 2 ("VALIDERINGS- OG SIKKERHEDSKONTROL"):
-  1. **Argumenter:** Tjekker om `$# -lt 6` og viser venlig vejledning med `usage`.
+  1. **Argumenter:** Tjekker om de nødvendige parametre er angivet og viser venlig vejledning med `usage`.
   2. **Numerisk ID:** Regex-tjek `[[ "$ID" =~ ^[0-9]+$ ]]`.
-  3. **Duplikat-tjek:** Kalder `qm status "$ID"` / `pct status "$ID"` for at forhindre overskrivelse af eksisterende servere.
-  4. **Template-verifikation:** Kontrollerer at templaten eksisterer og har flaget `template: 1`.
-  5. **Bridge/VNet-validering:** Tjekker med `ip link show "$BRIDGE"` at netværket findes. Hvis det findes i `/etc/pve/sdn/vnets.cfg` men mangler i kernen, kalder scriptet automatisk `pvesdn reload`.
-  6. **IP/CIDR kontrol:** Regex-validerer IPv4-format med maske (fx `192.168.10.10/24`).
-  7. **Kloning-fejl:** `if ! qm clone ...; then error ... fi` fanger manglende diskplads eller storage-fejl.
+  3. **Template-verifikation:** Kontrollerer at templaten eksisterer og har flaget `template: 1`.
+  4. **Bridge/VNet-validering:** Tjekker med `ip link show "$BRIDGE"` at netværket findes. Hvis det findes i `/etc/pve/sdn/vnets.cfg` men mangler i kernen, kalder scriptet automatisk `pvesdn reload`.
+  5. **IP/CIDR kontrol:** Regex-validerer IPv4-format med maske (fx `192.168.10.10/24`).
+  6. **Kloning-fejl:** `if ! qm clone ...; then error ... fi` fanger manglende diskplads eller storage-fejl.
 
 ---
 
@@ -219,7 +215,7 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
   Isolation opretholdes på tre niveauer:
   1. **Layer 2 (Data Link) via SDN:** Hver kunde er isoleret i sit eget SDN VNet (`alfa`, `bravo`, `charlie`, `delta`) med separate 802.1Q tags (10, 20, 30, 40) under zonen `kundenet`. Broadcasts og ARP-pakker kan ikke krydse mellem VNets.
   2. **Layer 3 (Network):** Hver kunde har sit eget IP-subnet (fx `192.168.10.0/24`, `192.168.20.0/24`). Al kommunikation mellem subnets skal passere virksomhedens firewall/router.
-  3. **Management / Proxmox RBAC:** Hver VM placeres i en dedikeret Proxmox Resource Pool (`pool-alfa`, etc.), hvor adgangskontrol styrer, hvilke administratorer/brugere der må se og administrere maskinerne.
+  3. **Management / Proxmox RBAC:** Hver VM kan placeres i en dedikeret Proxmox Resource Pool (`pool-alfa`, etc.), hvor adgangskontrol styrer, hvilke administratorer/brugere der må se og administrere maskinerne.
 
 ---
 
@@ -247,4 +243,25 @@ Her er dine præcise svar, tekniske begrundelser og linjehenvisninger for både 
      ```bash
      ./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
      ```
+     *(Eller endnu smartere: Man kører blot `./deploy.sh sync`, som automatisk opdager den manglende VM og genopbygger den ud fra state-filen).*
   4. Efter 35 sekunder tilgår man `http://192.168.10.10/` og `ssh sysadmin@192.168.10.10`. Alt fungerer fejlfrit uden at administratoren har rørt ved maskinen.
+
+---
+
+### Spørgsmål 21: "Hvordan holder jeres script styr på hvilke VM'er der er oprettet (State Management)?"
+* **Svar:**  
+  Scriptet anvender princippet om **Declarative State Management** (svarende til princippet bag Terraform og Kubernetes):
+  * Den ønskede tilstand (*Desired State*) gemmes i filen `deployments.csv`.
+  * Hver gang en ny server oprettes via CLI eller menuen, gemmer funktionen `save_state()` automatisk serverens parametre (ID, Hostname, IP, Gateway, VNet, Pool, Rolle) i filen.
+  * Med kommandoen `./deploy.sh status` kan administratoren få et samlet overblik over alle definerede servere og deres reelle driftstilstand i Proxmox.
+
+---
+
+### Spørgsmål 22: "Hvad sker der, hvis en VM bliver slettet, og hvordan genopbygger scriptet den automatisk (Reconciliation Loop)?"
+* **Svar:**  
+  Scriptet indeholder en automatisk **Reconciliation Loop** via kommandoen `./deploy.sh sync` (eller valg 1 i menuen):
+  1. Scriptet gennemgår hver linje i `deployments.csv`.
+  2. For hver server tjekker det med `qm status <ID>` (eller `pct status <ID>`), om maskinen findes i Proxmox.
+  3. **Hvis maskinen kører:** Scriptet rapporterer grønt OK og foretager sig intet.
+  4. **Hvis maskinen er stoppet:** Scriptet starter maskinen (`qm start <ID>`).
+  5. **Hvis maskinen er slettet / mangler:** Scriptet detekterer afvigelsen med det samme, henter de oprindelige parametre fra `deployments.csv` og kalder `deploy_instance()` for at genopbygge serveren fra standard-templaten med korrekt netværk, Cloud-Init og software-rolle.

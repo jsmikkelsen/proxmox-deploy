@@ -139,20 +139,50 @@ Udrulningen af de fire kundemaskiner blev gennemført med følgende kommandoer m
 
 ---
 
-## 8. Test af Reproducerbarhed (Redeployment)
+## 8. Test af Reproducerbarhed & Deklarativ State Management
 
-For at dokumentere, at udrulningen er 100% reproducerbar uden manuelle indgreb, blev serveren **`alfa-web01` (VMID: 111)** destrueret og redeployed:
+For at dokumentere, at udrulningen er 100% reproducerbar uden manuelle indgreb, understøtter platformen både manuel genudrulning og **automatisk selvreparation via deklarativ state management**:
+
+### 8.1 State Management (`deployments.csv`)
+Hver gang en server udrulles, registreres dens specifikationer automatisk i `deployments.csv`:
+```csv
+# ID,HOSTNAME,IP_CIDR,GATEWAY,BRIDGE,POOL,CUST_NAME,ROLE,TARGET_TYPE
+111,alfa-web01,192.168.10.10/24,192.168.10.1,alfa,pool-alfa,Kunde Alfa,web,vm
+121,bravo-web01,192.168.20.10/24,192.168.20.1,bravo,pool-bravo,Kunde Bravo,web,vm
+131,charlie-web01,192.168.30.10/24,192.168.30.1,charlie,pool-charlie,Kunde Charlie,web,vm
+141,delta-web01,192.168.40.10/24,192.168.40.1,delta,pool-delta,Kunde Delta,web,vm
+```
+
+Med kommandoen `./deploy.sh status` kan administratoren til enhver tid få et overblik over samtlige serveres aktuelle tilstand i Proxmox.
+
+### 8.2 Test af Sletning og Selvreparerende Genudrulning (Reconciliation)
+For at eftervise selvreparationen blev serveren **`alfa-web01` (VMID: 111)** destrueret:
 
 1. **Stop og sletning af VM:**
    ```bash
    qm stop 111
    qm destroy 111 --purge
    ```
-2. **Genudrulning via script:**
+2. **Bekræft sletning i state-oversigten:**
    ```bash
-   ./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
+   ./deploy.sh status
    ```
-3. **Verifikation efter 35 sekunder:**
+   *Output viser med det samme: `111 VM alfa-web01 ... MANGLER (SLETTET)`.*
+
+3. **Automatisk synkronisering og genopbygning:**
+   ```bash
+   ./deploy.sh sync
+   ```
+   *Output:*
+   ```text
+   [INFO] Undersøger VM ID 111 (alfa-web01)...
+   [ADVARSEL] AFVIGELSE DETEKTERET! VM 111 (alfa-web01) MANGLER I PROXMOX (slettet).
+   [INFO] Genskaber og udruller alfa-web01 automatisk fra state-definitionen...
+   [OK] DEPLOYMENT GENNEMFØRT SUCCESFULDT!
+   [OK] RECONCILIATION AFSLUTTET SUCCESFULDT (1 genopbygget).
+   ```
+
+4. **Verifikation efter 35 sekunder:**
    * **Netværksping:** `ping -c 3 192.168.10.10` ➔ 0% packet loss.
    * **SSH-adgang:** `ssh sysadmin@192.168.10.10` ➔ Forbindelse etableret med nøgle uden password.
    * **Webserver:** `curl -s http://192.168.10.10/ | grep -E "Kunde|alfa-web01|192.168.10.10"` ➔ Korrekte data fundet i HTML.

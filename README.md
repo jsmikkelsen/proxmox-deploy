@@ -112,16 +112,28 @@ Vil du oprette en container i stedet for en virtuel maskine, tilføjer du blot `
 
 ---
 
-### Trin 5: Test af Reproducerbarhed (Krav 8)
-Slet maskinen og redeploy på under 40 sekunder:
+### Trin 5: Test af Reproducerbarhed & Automatisk Selvreparation (Krav 8)
+
+Scriptet anvender **Deklarativ State Management** via `deployments.csv`.
+
+#### Se aktuel driftstilstand:
 ```bash
-# 1. Stop og slet
+./deploy.sh status
+```
+
+#### Test af sletning og selvreparation:
+```bash
+# 1. Stop og slet en VM (fx Kunde Alfa, ID 111):
 qm stop 111 && qm destroy 111 --purge
 
-# 2. Redeploy med én kommando
-./deploy.sh 111 alfa-web01 192.168.10.10/24 192.168.10.1 alfa pool-alfa "Kunde Alfa"
-```
-# 3. Verificér webserver
+# 2. Tjek at den mangler:
+./deploy.sh status
+# (Viser: 111 VM alfa-web01 ... MANGLER (SLETTET))
+
+# 3. Kør automatisk synkronisering (Reconciliation Loop):
+./deploy.sh sync
+
+# 4. Verificér webserver efter 35 sekunder:
 curl http://192.168.10.10/
 ```
 
